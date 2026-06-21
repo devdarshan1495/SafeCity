@@ -153,6 +153,7 @@ kubectl apply -f kubernetes/app/
 kubectl apply -f kubernetes/monitoring/
 kubectl apply -f kubernetes/logging/
 kubectl apply -f kubernetes/vault/
+kubectl apply -f kubernetes/network-policies/
 sleep 15
 
 echo "═══════════════════════════════════════════════════════"
