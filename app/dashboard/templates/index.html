@@ -31,9 +31,9 @@
         <div class="stat-label">Avg Response</div>
         <div class="stat-value">
             {% if summary.get('avg_response_time_minutes') %}
-                {{ summary.avg_response_time_minutes }} min
+            {{ summary.avg_response_time_minutes }} min
             {% else %}
-                —
+            —
             {% endif %}
         </div>
     </div>
@@ -66,12 +66,14 @@
                 <tr>
                     <td class="cell-title">{{ inc.title | truncate(40) }}</td>
                     <td>
-                        <span class="badge" style="background: {{ inc.severity | severity_color }}20; color: {{ inc.severity | severity_color }}">
+                        <span class="badge"
+                            style="background: {{ inc.severity | severity_color }}20; color: {{ inc.severity | severity_color }}">
                             {{ inc.severity }}
                         </span>
                     </td>
                     <td>
-                        <span class="badge" style="background: {{ inc.status | status_color }}20; color: {{ inc.status | status_color }}">
+                        <span class="badge"
+                            style="background: {{ inc.status | status_color }}20; color: {{ inc.status | status_color }}">
                             {{ inc.status }}
                         </span>
                     </td>
@@ -79,7 +81,9 @@
                     <td class="cell-muted">{{ inc.reported_at | timeago }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="cell-empty">No incidents reported</td></tr>
+                <tr>
+                    <td colspan="5" class="cell-empty">No incidents reported</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -137,13 +141,15 @@
     </div>
     <div class="severity-bars">
         {% set sev_data = summary.get('by_severity', {}) %}
-        {% set max_sev = sev_data.values() | list | max | default(1) %}
+        {% set max_sev = (sev_data.values() | max) if sev_data else 1 %}
         {% for level in ['critical', 'high', 'medium', 'low'] %}
         {% set count = sev_data.get(level, 0) %}
         <div class="severity-row">
             <span class="severity-label">{{ level | capitalize }}</span>
             <div class="severity-bar-track">
-                <div class="severity-bar" style="width: {{ (count / max_sev * 100) if max_sev else 0 }}%; background: {{ level | severity_color }}"></div>
+                <div class="severity-bar"
+                    style="width: {{ (count / max_sev * 100) if max_sev else 0 }}%; background: {{ level | severity_color }}">
+                </div>
             </div>
             <span class="severity-count">{{ count }}</span>
         </div>
