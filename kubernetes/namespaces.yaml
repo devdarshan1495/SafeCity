@@ -1,0 +1,28 @@
+# ── SafeCity — Kubernetes Namespaces ─────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: safecity
+  labels:
+    app.kubernetes.io/part-of: safecity
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: safecity
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/part-of: safecity
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault
+  labels:
+    app.kubernetes.io/part-of: safecity

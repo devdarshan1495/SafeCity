@@ -1,0 +1,11 @@
+# ── SafeCity — Application ConfigMap ─────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: safecity-config
+  namespace: safecity
+data:
+  DATABASE_URL: "postgresql://safecity:safecity_prod_pass@postgres:5432/safecity"
+  REDIS_URL: "redis://redis:6379/0"
+  API_URL: "http://safecity-api:8000"
+  DEBUG: "false"

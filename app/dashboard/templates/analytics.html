@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}SafeCity — Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Analytics</h1>
+    <p class="page-subtitle">Threat intelligence and operational metrics</p>
+</div>
+
+<!-- ─── Threat Assessment ───────────────────────────────────── -->
+<div class="card">
+    <div class="card-header">
+        <h2>Threat Assessment</h2>
+        <span class="badge threat-{{ threats.get('overall_level', 'low') }}" style="background: {{ threats.get('overall_level', 'low') | severity_color }}20; color: {{ threats.get('overall_level', 'low') | severity_color }}">
+            {{ threats.get('overall_level', 'low') | upper }}
+        </span>
+    </div>
+
+    <div class="threat-overview">
+        <div class="threat-score-display">
+            <div class="threat-score-number">{{ threats.get('score', 0) }}</div>
+            <div class="threat-score-label">Threat Score</div>
+        </div>
+
+        <div class="threat-details">
+            <div class="threat-section">
+                <h3>Contributing Factors</h3>
+                <ul class="threat-factors">
+                    {% for factor in threats.get('contributing_factors', []) %}
+                    <li>{{ factor }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="threat-section">
+                <h3>Recommendations</h3>
+                <ul class="threat-recs">
+                    {% for rec in threats.get('recommendations', []) %}
+                    <li>{{ rec }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Zone Threat Map ─────────────────────────────────────── -->
+<div class="card">
+    <div class="card-header">
+        <h2>Zone Threat Levels</h2>
+    </div>
+    <div class="zone-threat-grid">
+        {% for zone in threats.get('zones', []) %}
+        <div class="zone-threat-card">
+            <div class="zone-threat-name">{{ zone.zone }}</div>
+            <div class="zone-threat-score threat-{{ zone.level }}">{{ zone.score }}</div>
+            <div class="zone-threat-level">{{ zone.level | upper }}</div>
+            <div class="zone-threat-count">{{ zone.active_incidents }} active</div>
+        </div>
+        {% else %}
+        <div class="cell-empty">No zone threat data available</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ─── Breakdown Charts ────────────────────────────────────── -->
+<div class="grid-2col">
+    <div class="card">
+        <div class="card-header">
+            <h2>By Type</h2>
+        </div>
+        <div class="breakdown-list">
+            {% set type_data = summary.get('by_type', {}) %}
+            {% set max_type = type_data.values() | list | max | default(1) %}
+            {% for t, count in type_data.items() | sort(attribute='1', reverse=true) %}
+            <div class="breakdown-row">
+                <span class="breakdown-label">{{ t | capitalize }}</span>
+                <div class="breakdown-bar-track">
+                    <div class="breakdown-bar" style="width: {{ (count / max_type * 100) if max_type else 0 }}%"></div>
+                </div>
+                <span class="breakdown-count">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>By Zone</h2>
+        </div>
+        <div class="breakdown-list">
+            {% set zone_data = summary.get('by_zone', {}) %}
+            {% set max_zone = zone_data.values() | list | max | default(1) %}
+            {% for z, count in zone_data.items() | sort(attribute='1', reverse=true) %}
+            <div class="breakdown-row">
+                <span class="breakdown-label">{{ z }}</span>
+                <div class="breakdown-bar-track">
+                    <div class="breakdown-bar" style="width: {{ (count / max_zone * 100) if max_zone else 0 }}%"></div>
+                </div>
+                <span class="breakdown-count">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ─── Sensor Readings ─────────────────────────────────────── -->
+<div class="card">
+    <div class="card-header">
+        <h2>Latest Sensor Readings</h2>
+    </div>
+    <table class="table table-full">
+        <thead>
+            <tr>
+                <th>Sensor ID</th>
+                <th>Type</th>
+                <th>Reading</th>
+                <th>Zone</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sensors %}
+            <tr>
+                <td class="cell-mono">{{ s.sensor_id }}</td>
+                <td><span class="type-label">{{ s.sensor_type }}</span></td>
+                <td>{{ s.value }} {{ s.unit or '' }}</td>
+                <td class="cell-muted">{{ s.zone or '—' }}</td>
+                <td class="cell-muted">{{ s.timestamp | timeago }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="cell-empty">No sensor data available</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

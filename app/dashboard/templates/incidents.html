@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}SafeCity — Incidents{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-row">
+        <div>
+            <h1>Incidents</h1>
+            <p class="page-subtitle">All reported public safety incidents</p>
+        </div>
+        <a href="{{ url_for('create_incident') }}" class="btn btn-primary">+ New Incident</a>
+    </div>
+</div>
+
+<!-- ─── Filters ─────────────────────────────────────────────── -->
+<div class="filters-bar">
+    <form method="GET" action="{{ url_for('incidents_page') }}" class="filters-form">
+        <select name="severity" class="filter-select">
+            <option value="">All Severities</option>
+            <option value="critical" {% if filters.severity == 'critical' %}selected{% endif %}>Critical</option>
+            <option value="high" {% if filters.severity == 'high' %}selected{% endif %}>High</option>
+            <option value="medium" {% if filters.severity == 'medium' %}selected{% endif %}>Medium</option>
+            <option value="low" {% if filters.severity == 'low' %}selected{% endif %}>Low</option>
+        </select>
+        <select name="type" class="filter-select">
+            <option value="">All Types</option>
+            <option value="crime" {% if filters.type == 'crime' %}selected{% endif %}>Crime</option>
+            <option value="fire" {% if filters.type == 'fire' %}selected{% endif %}>Fire</option>
+            <option value="traffic" {% if filters.type == 'traffic' %}selected{% endif %}>Traffic</option>
+            <option value="medical" {% if filters.type == 'medical' %}selected{% endif %}>Medical</option>
+            <option value="infrastructure" {% if filters.type == 'infrastructure' %}selected{% endif %}>Infrastructure</option>
+            <option value="cyber" {% if filters.type == 'cyber' %}selected{% endif %}>Cyber</option>
+            <option value="environmental" {% if filters.type == 'environmental' %}selected{% endif %}>Environmental</option>
+        </select>
+        <select name="status" class="filter-select">
+            <option value="">All Statuses</option>
+            <option value="reported" {% if filters.status == 'reported' %}selected{% endif %}>Reported</option>
+            <option value="dispatched" {% if filters.status == 'dispatched' %}selected{% endif %}>Dispatched</option>
+            <option value="responding" {% if filters.status == 'responding' %}selected{% endif %}>Responding</option>
+            <option value="resolved" {% if filters.status == 'resolved' %}selected{% endif %}>Resolved</option>
+            <option value="closed" {% if filters.status == 'closed' %}selected{% endif %}>Closed</option>
+        </select>
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        {% if filters.severity or filters.type or filters.status or filters.zone %}
+        <a href="{{ url_for('incidents_page') }}" class="btn btn-ghost">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- ─── Incidents Table ─────────────────────────────────────── -->
+<div class="card">
+    <table class="table table-full">
+        <thead>
+            <tr>
+                <th>Incident</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Status</th>
+                <th>Zone</th>
+                <th>Assigned To</th>
+                <th>Reported</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inc in incidents %}
+            <tr>
+                <td>
+                    <div class="cell-title">{{ inc.title }}</div>
+                    {% if inc.description %}
+                    <div class="cell-desc">{{ inc.description | truncate(80) }}</div>
+                    {% endif %}
+                </td>
+                <td><span class="type-label">{{ inc.incident_type }}</span></td>
+                <td>
+                    <span class="badge" style="background: {{ inc.severity | severity_color }}20; color: {{ inc.severity | severity_color }}">
+                        {{ inc.severity }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge" style="background: {{ inc.status | status_color }}20; color: {{ inc.status | status_color }}">
+                        {{ inc.status }}
+                    </span>
+                </td>
+                <td class="cell-muted">{{ inc.zone or '—' }}</td>
+                <td class="cell-muted">{{ inc.assigned_to or 'Unassigned' }}</td>
+                <td class="cell-muted">{{ inc.reported_at | timeago }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="cell-empty">No incidents match your filters</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="result-count">
+    {{ incidents | length }} incident{{ 's' if incidents | length != 1 else '' }} shown
+</div>
+{% endblock %}

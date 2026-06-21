@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}SafeCity — Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Operations Dashboard</h1>
+    <p class="page-subtitle">Real-time public safety overview</p>
+</div>
+
+<!-- ─── Stat Cards ──────────────────────────────────────────── -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Incidents</div>
+        <div class="stat-value">{{ summary.get('total_incidents', 0) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active</div>
+        <div class="stat-value stat-active">{{ summary.get('active_incidents', 0) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Resolved</div>
+        <div class="stat-value stat-resolved">{{ summary.get('resolved_incidents', 0) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Threat Level</div>
+        <div class="stat-value stat-threat threat-{{ summary.get('threat_level', 'low') }}">
+            {{ summary.get('threat_level', 'low') | upper }}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Avg Response</div>
+        <div class="stat-value">
+            {% if summary.get('avg_response_time_minutes') %}
+                {{ summary.avg_response_time_minutes }} min
+            {% else %}
+                —
+            {% endif %}
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Threat Score</div>
+        <div class="stat-value">{{ summary.get('threat_score', 0) }}<span class="stat-unit">/100</span></div>
+    </div>
+</div>
+
+<!-- ─── Two Column Layout ───────────────────────────────────── -->
+<div class="grid-2col">
+    <!-- Recent Incidents -->
+    <div class="card">
+        <div class="card-header">
+            <h2>Recent Incidents</h2>
+            <a href="{{ url_for('incidents_page') }}" class="card-link">View all →</a>
+        </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Incident</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Zone</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inc in incidents %}
+                <tr>
+                    <td class="cell-title">{{ inc.title | truncate(40) }}</td>
+                    <td>
+                        <span class="badge" style="background: {{ inc.severity | severity_color }}20; color: {{ inc.severity | severity_color }}">
+                            {{ inc.severity }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge" style="background: {{ inc.status | status_color }}20; color: {{ inc.status | status_color }}">
+                            {{ inc.status }}
+                        </span>
+                    </td>
+                    <td class="cell-muted">{{ inc.zone or '—' }}</td>
+                    <td class="cell-muted">{{ inc.reported_at | timeago }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="cell-empty">No incidents reported</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Alerts & Zone Summary -->
+    <div class="card-stack">
+        <div class="card">
+            <div class="card-header">
+                <h2>Active Alerts</h2>
+            </div>
+            <div class="alert-list">
+                {% for alert in alerts %}
+                <div class="alert-item alert-{{ alert.severity }}">
+                    <div class="alert-badge">{{ alert.severity | upper }}</div>
+                    <div class="alert-content">
+                        <div class="alert-message">{{ alert.message | truncate(100) }}</div>
+                        <div class="alert-meta">{{ alert.alert_type }} • {{ alert.created_at | timeago }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="cell-empty">No active alerts</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Zone Activity</h2>
+            </div>
+            <div class="zone-list">
+                {% for zone in zones %}
+                <div class="zone-item">
+                    <span class="zone-name">{{ zone.zone }}</span>
+                    <div class="zone-stats">
+                        <span class="zone-active">{{ zone.active_incidents }} active</span>
+                        <span class="zone-total">{{ zone.total_incidents }} total</span>
+                    </div>
+                    <div class="zone-bar-track">
+                        <div class="zone-bar" style="width: {{ [zone.active_incidents * 20, 100] | min }}%"></div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="cell-empty">No zone data</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── Severity Breakdown ──────────────────────────────────── -->
+<div class="card">
+    <div class="card-header">
+        <h2>Incidents by Severity</h2>
+    </div>
+    <div class="severity-bars">
+        {% set sev_data = summary.get('by_severity', {}) %}
+        {% set max_sev = sev_data.values() | list | max | default(1) %}
+        {% for level in ['critical', 'high', 'medium', 'low'] %}
+        {% set count = sev_data.get(level, 0) %}
+        <div class="severity-row">
+            <span class="severity-label">{{ level | capitalize }}</span>
+            <div class="severity-bar-track">
+                <div class="severity-bar" style="width: {{ (count / max_sev * 100) if max_sev else 0 }}%; background: {{ level | severity_color }}"></div>
+            </div>
+            <span class="severity-count">{{ count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

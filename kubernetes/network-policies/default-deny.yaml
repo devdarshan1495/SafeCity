@@ -1,0 +1,54 @@
+# ── Network Policy — Default Deny + Allow SafeCity ───────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: safecity
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# Allow traffic within the safecity namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-safecity-internal
+  namespace: safecity
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: safecity
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 8000
+          protocol: TCP
+---
+# Allow external NodePort traffic to API and Dashboard
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-external-access
+  namespace: safecity
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["safecity-api", "safecity-dashboard"]
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: 8000
+          protocol: TCP
+        - port: 5000
+          protocol: TCP

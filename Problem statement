@@ -1,0 +1,47 @@
+Case Study : Project SafeCity – Urban
+Public Safety Analytics Platform
+SafeCity Technologies operates a large-scale public safety platform that integrates data from
+surveillance cameras, emergency response systems, law enforcement databases, traffic
+management systems, and IoT-enabled city infrastructure. The platform supports public safety
+agencies responsible for crime prevention, incident response, disaster management, and
+emergency coordination across major metropolitan areas. As urban populations continue to
+grow, the volume of real-time video feeds, sensor data, and operational events processed by
+the platform has increased significantly.
+Several recent incidents involving communication delays, infrastructure failures, and system
+outages have raised concerns regarding operational resilience and response effectiveness.
+Existing infrastructure lacks sufficient automation, observability, and disaster recovery
+capabilities to support mission-critical operations. Government authorities have approved a
+modernization initiative to create a cloud-native platform capable of delivering real-time
+analytics, predictive threat detection, and highly available public safety services.
+As the lead DevOps engineering team, your challenge is to design and implement a resilient
+DevOps ecosystem capable of processing millions of events per minute while maintaining
+operational continuity. Applications must be containerized using Docker, infrastructure
+provisioned using Terraform, deployments orchestrated through Kubernetes, and CI/CD
+pipelines automated using Jenkins. Monitoring and logging must be implemented using
+Prometheus, Grafana, and ELK Stack, while Vault secures critical credentials and system
+secrets. During evaluation, city authorities may simulate infrastructure outages, communication
+failures, cyberattacks, emergency traffic surges, and data center disruptions. The platform must
+demonstrate self-healing, fault tolerance, and uninterrupted operations.
+Objective: The objective of this project is to design, implement, and demonstrate a highly
+available DevOps platform supporting public safety analytics, infrastructure automation,
+operational monitoring, and disaster recovery.
+
+Main Deliverables and Expected Outcomes
+
+Design, develop, and deploy a complete production-ready business application, dashboard, API platform, monitoring platform, analytics system, or management portal based on the given problem statement. The solution must demonstrate a comprehensive DevOps implementation, including:
+
+Dockerized application and supporting services
+Infrastructure provisioning and automation using Terraform
+Kubernetes-based container orchestration and deployment
+CI/CD pipelines implemented with Jenkins
+Monitoring, alerting, and observability systems
+Centralized logging and log management
+Secure secrets and configuration management
+Backup, disaster recovery, and business continuity procedures
+Architecture design and technical documentation
+High availability, scalability, security, resilience, and operational readiness best practices
+
+The final deliverable should showcase an end-to-end cloud-native platform that is fully automated, deployable, maintainable, and capable of supporting real-world production workloads.
+
+Separate from the PS : I have terraform and aws cli on my laptop, idk if jenkins has to be intalled or what.
+You'll be using ec2 right for this project and ig some other services as well, leaving that my key file for ec2 is DevAnalytics.pem and the region is ap-south-1, mumbai okay. That's all

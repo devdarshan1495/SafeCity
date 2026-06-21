@@ -1,0 +1,17 @@
+# ── SafeCity API — Service ───────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: safecity-api
+  namespace: safecity
+  labels:
+    app: safecity-api
+spec:
+  type: NodePort
+  selector:
+    app: safecity-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30000
+      name: http
