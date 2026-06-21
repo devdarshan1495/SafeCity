@@ -2,6 +2,9 @@
 {% block title %}SafeCity — Dashboard{% endblock %}
 
 {% block content %}
+{% set threat_level = summary.get('threat_level', 'low') %}
+{% set avg_response = summary.get('avg_response_time_minutes') %}
+
 <div class="page-header">
     <h1>Operations Dashboard</h1>
     <p class="page-subtitle">Real-time public safety overview</p>
@@ -23,15 +26,15 @@
     </div>
     <div class="stat-card">
         <div class="stat-label">Threat Level</div>
-        <div class="stat-value stat-threat threat-{{ summary.get('threat_level', 'low') }}">
-            {{ summary.get('threat_level', 'low') | upper }}
+        <div class="stat-value stat-threat threat-{{ threat_level }}">
+            {{ threat_level | upper }}
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Avg Response</div>
         <div class="stat-value">
-            {% if summary.get('avg_response_time_minutes') %}
-            {{ summary.avg_response_time_minutes }} min
+            {% if avg_response is not none %}
+            {{ avg_response }} min
             {% else %}
             —
             {% endif %}
@@ -63,17 +66,19 @@
             </thead>
             <tbody>
                 {% for inc in incidents %}
+                {% set severity_color_value = inc.severity | severity_color %}
+                {% set status_color_value = inc.status | status_color %}
                 <tr>
                     <td class="cell-title">{{ inc.title | truncate(40) }}</td>
                     <td>
                         <span class="badge"
-                            style="background: {{ inc.severity | severity_color }}20; color: {{ inc.severity | severity_color }}">
+                            style="background: {{ severity_color_value }}20; color: {{ severity_color_value }}">
                             {{ inc.severity }}
                         </span>
                     </td>
                     <td>
                         <span class="badge"
-                            style="background: {{ inc.status | status_color }}20; color: {{ inc.status | status_color }}">
+                            style="background: {{ status_color_value }}20; color: {{ status_color_value }}">
                             {{ inc.status }}
                         </span>
                     </td>
@@ -116,6 +121,7 @@
             </div>
             <div class="zone-list">
                 {% for zone in zones %}
+                {% set zone_width = zone.active_incidents * 20 %}
                 <div class="zone-item">
                     <span class="zone-name">{{ zone.zone }}</span>
                     <div class="zone-stats">
@@ -123,7 +129,7 @@
                         <span class="zone-total">{{ zone.total_incidents }} total</span>
                     </div>
                     <div class="zone-bar-track">
-                        <div class="zone-bar" style="width: {{ [zone.active_incidents * 20, 100] | min }}%"></div>
+                        <div class="zone-bar" style="width: {{ 100 if zone_width > 100 else zone_width }}%"></div>
                     </div>
                 </div>
                 {% else %}
