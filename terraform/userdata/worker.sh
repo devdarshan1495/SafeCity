@@ -19,7 +19,7 @@ SC_PROJECT="${project_name}"
 echo "[1/4] Updating system packages …"
 apt-get update -qq
 apt-get upgrade -y -qq
-apt-get install -y -qq curl wget jq unzip
+apt-get install -y -qq curl wget jq unzip awscli
 
 # ── Install Docker ──────────────────────────────────────────────
 echo "[2/4] Installing Docker …"

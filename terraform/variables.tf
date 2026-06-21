@@ -49,13 +49,13 @@ variable "key_name" {
 variable "master_instance_type" {
   description = "Instance type for K3s master node"
   type        = string
-  default     = "t3.medium"
+    default     = "t3.small"
 }
 
 variable "worker_instance_type" {
   description = "Instance type for K3s worker node(s)"
   type        = string
-  default     = "t3.medium"
+  default     = "t3.small"
 }
 
 variable "master_volume_size" {

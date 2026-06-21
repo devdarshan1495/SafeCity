@@ -4,7 +4,7 @@
 
 resource "aws_security_group" "k3s_master" {
   name_prefix = "${var.project_name}-master-"
-  description = "K3s master node — API server, SSH, web services"
+  description = "K3s master node - API server, SSH, web services"
   vpc_id      = aws_vpc.main.id
 
   # SSH
@@ -100,7 +100,7 @@ resource "aws_security_group" "k3s_master" {
 
 resource "aws_security_group" "k3s_worker" {
   name_prefix = "${var.project_name}-worker-"
-  description = "K3s worker node — app workloads"
+  description = "K3s worker node - app workloads"
   vpc_id      = aws_vpc.main.id
 
   # SSH
