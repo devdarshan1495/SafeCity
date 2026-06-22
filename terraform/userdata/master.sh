@@ -47,6 +47,16 @@ usermod -aG docker ubuntu
 systemctl enable docker
 systemctl start docker
 
+# Open Docker socket permissions so Jenkins container can access it
+chmod 666 /var/run/docker.sock
+# Persist across reboots: ExecStartPost on docker.service
+mkdir -p /etc/systemd/system/docker.service.d
+cat > /etc/systemd/system/docker.service.d/socket-perms.conf << 'EOF'
+[Service]
+ExecStartPost=/bin/chmod 666 /var/run/docker.sock
+EOF
+systemctl daemon-reload
+
 # ── Install K3s Server ──────────────────────────────────────────
 echo "[4/9] Installing K3s server …"
 curl -sfL https://get.k3s.io | sh -s - server \
@@ -89,6 +99,7 @@ docker volume create jenkins_home
 docker run -d \
     --name jenkins \
     --restart unless-stopped \
+    --group-add 998 \
     -p 8080:8080 \
     -p 50000:50000 \
     -v jenkins_home:/var/jenkins_home \
