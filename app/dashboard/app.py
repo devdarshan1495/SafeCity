@@ -13,6 +13,15 @@ import requests
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 
+# ─── Startup delay for Kubernetes networking to settle ─────────
+
+startup_delay = int(os.getenv("STARTUP_DELAY", "15"))
+if startup_delay:
+    logger = logging.getLogger("dashboard")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
+    logger.info("Waiting %ds for Kubernetes networking to settle ...", startup_delay)
+    time.sleep(startup_delay)
+
 # ─── Configuration ───────────────────────────────────────────────────
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")

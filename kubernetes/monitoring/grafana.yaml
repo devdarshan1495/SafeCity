@@ -89,7 +89,7 @@ data:
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
           "title": "Error Rate",
           "type": "stat",
-          "targets": [{ "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))", "legendFormat": "errors" }]
+          "targets": [{ "expr": "sum(rate(http_requests_total{status=~\"4xx|5xx\"}[5m])) / sum(rate(http_requests_total[5m]))", "legendFormat": "errors" }]
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
