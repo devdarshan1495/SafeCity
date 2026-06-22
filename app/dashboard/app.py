@@ -8,6 +8,7 @@ import os
 import logging
 from datetime import datetime
 
+import time
 import requests
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
@@ -23,6 +24,19 @@ app.secret_key = SECRET_KEY
 # Prometheus metrics
 requests_total = Counter("dashboard_requests_total", "Total dashboard requests", ["method", "endpoint"])
 request_duration = Histogram("dashboard_request_duration_seconds", "Dashboard request duration", ["method", "endpoint"])
+
+# ─── After-request instrumentation ────────────────────────────────
+
+@app.before_request
+def _start_timer():
+    request._prom_start = time.time()
+
+@app.after_request
+def _instrument(response):
+    requests_total.labels(method=request.method, endpoint=request.path).inc()
+    dt = time.time() - request._prom_start if hasattr(request, "_prom_start") else 0
+    request_duration.labels(method=request.method, endpoint=request.path).observe(dt)
+    return response
 
 logging.basicConfig(
     level=logging.INFO,
