@@ -18,13 +18,13 @@ def vault_available() -> bool:
     return bool(settings.VAULT_ADDR and settings.VAULT_TOKEN)
 
 
-def _wait_for_vault(client: hvac.Client, max_retries: int = 12, delay: int = 5) -> bool:
+def _wait_for_vault(client: hvac.Client, max_retries: int = 6, delay: int = 5) -> bool:
     """Wait until Vault is reachable and seeded with our secrets."""
     for attempt in range(1, max_retries + 1):
         try:
             if client.is_authenticated():
-                client.secrets.kv.v2.list_secrets(
-                    path="safecity", mount_point="secret"
+                client.secrets.kv.v2.read_secret_version(
+                    path="safecity/database", mount_point="secret"
                 )
                 logger.info("Vault is reachable and seeded.")
                 return True

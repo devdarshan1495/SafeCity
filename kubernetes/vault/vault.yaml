@@ -1,5 +1,4 @@
-# ── HashiCorp Vault — Dev Mode ───────────────────────────────────
-# Running in dev mode for demo. NOT for production.
+# ── HashiCorp Vault — Dev Mode (with re-seed on restart) ────────
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,6 +16,7 @@ spec:
       labels:
         app: vault
     spec:
+      shareProcessNamespace: true
       containers:
         - name: vault
           image: hashicorp/vault:1.17
@@ -39,6 +39,34 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
+        - name: re-seed
+          image: hashicorp/vault:1.17
+          command: ["sh", "-c"]
+          args:
+            - |
+              sleep 5
+              while true; do
+                if vault kv get secret/safecity/database >/dev/null 2>&1; then
+                  sleep 60
+                  continue
+                fi
+                echo "Secrets missing — re-seeding …"
+                vault kv put secret/safecity/database \
+                  username=safecity password=safecity_prod_pass \
+                  host=postgres.safecity port=5432 dbname=safecity
+                vault kv put secret/safecity/api \
+                  jwt_secret=safecity-jwt-$(date +%s) \
+                  api_key=sc-api-key-$(date +%s)
+                vault kv put secret/safecity/redis \
+                  url=redis://redis.safecity:6379/0
+                echo "Re-seed complete."
+                sleep 60
+              done
+          env:
+            - name: VAULT_ADDR
+              value: "http://127.0.0.1:8200"
+            - name: VAULT_TOKEN
+              value: "safecity-root-token"
           livenessProbe:
             httpGet:
               path: /v1/sys/health
