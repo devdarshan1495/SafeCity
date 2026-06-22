@@ -17,7 +17,7 @@ SC_PROJECT="${project_name}"
 SC_ECR="${ecr_registry}"
 
 # ── System Updates ──────────────────────────────────────────────
-echo "[1/7] Updating system packages …"
+echo "[1/8] Updating system packages …"
 apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq \
@@ -27,14 +27,14 @@ apt-get install -y -qq \
     postgresql-client awscli
 
 # ── Install Docker ──────────────────────────────────────────────
-echo "[2/7] Installing Docker …"
+echo "[2/8] Installing Docker …"
 curl -fsSL https://get.docker.com | sh
 usermod -aG docker ubuntu
 systemctl enable docker
 systemctl start docker
 
 # ── Install K3s Server ──────────────────────────────────────────
-echo "[3/7] Installing K3s server …"
+echo "[3/8] Installing K3s server …"
 curl -sfL https://get.k3s.io | sh -s - server \
     --write-kubeconfig-mode 644 \
     --disable traefik \
@@ -48,7 +48,7 @@ done
 echo "K3s server is ready."
 
 # ── Store K3s Token in SSM ──────────────────────────────────────
-echo "[4/7] Storing K3s join token in SSM …"
+echo "[4/8] Storing K3s join token in SSM …"
 K3S_JOIN_TOKEN=$(cat /var/lib/rancher/k3s/server/node-token)
 aws ssm put-parameter \
     --name "/$SC_PROJECT/k3s-token" \
@@ -58,18 +58,18 @@ aws ssm put-parameter \
     --region "$SC_REGION"
 
 # ── Setup kubeconfig for ubuntu user ────────────────────────────
-echo "[5/7] Configuring kubectl for ubuntu user …"
+echo "[5/8] Configuring kubectl for ubuntu user …"
 mkdir -p /home/ubuntu/.kube
 cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
 chown -R ubuntu:ubuntu /home/ubuntu/.kube
 echo 'export KUBECONFIG=/home/ubuntu/.kube/config' >> /home/ubuntu/.bashrc
 
 # ── Install Helm ────────────────────────────────────────────────
-echo "[6/7] Installing Helm …"
+echo "[6/8] Installing Helm …"
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 # ── Setup Jenkins (Docker container) ────────────────────────────
-echo "[7/7] Starting Jenkins …"
+echo "[7/8] Starting Jenkins …"
 docker volume create jenkins_home
 
 docker run -d \
@@ -93,6 +93,78 @@ echo "ECR login successful."
 ECREOF
 chmod +x /home/ubuntu/ecr-login.sh
 chown ubuntu:ubuntu /home/ubuntu/ecr-login.sh
+
+# ── Auto-Configure Jenkins (background) ─────────────────────────
+cat > /home/ubuntu/jenkins-setup.sh << JENKINSSETUP
+#!/bin/bash
+set -e
+
+JENKINS_URL="http://localhost:8080"
+echo "Waiting for Jenkins to be ready …"
+for i in \$(seq 1 36); do
+    HTTP_CODE=\$(curl -s -o /dev/null -w '%{http_code}' "\$JENKINS_URL/login" 2>/dev/null || echo "000")
+    if [ "\$HTTP_CODE" != "000" ] && [ "\$HTTP_CODE" != "503" ]; then
+        echo "Jenkins is ready (HTTP \$HTTP_CODE)."
+        break
+    fi
+    sleep 10
+done
+
+JENKINS_PASS=\$(docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword)
+echo "Jenkins admin password obtained."
+
+# Download CLI
+curl -s "\$JENKINS_URL/jnlpJars/jenkins-cli.jar" -o /tmp/jenkins-cli.jar
+
+# Install plugins
+echo "Installing Jenkins plugins …"
+java -jar /tmp/jenkins-cli.jar -auth "admin:\$JENKINS_PASS" install-plugin \
+    git pipeline-model-definition docker-workflow credentials-binding || true
+
+# Wait for plugin installs
+echo "Waiting for plugins to finalize …"
+sleep 30
+
+# Create the pipeline job
+echo "Creating pipeline job …"
+cat > /tmp/safecity-job.xml << 'XML'
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="pipeline-model-definition">
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>https://github.com/devdarshan1495/SafeCity.git</url>
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/master</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+    </scm>
+    <scriptPath>Jenkinsfile</scriptPath>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
+XML
+
+if java -jar /tmp/jenkins-cli.jar -auth "admin:\$JENKINS_PASS" create-job safecity-pipeline < /tmp/safecity-job.xml 2>/dev/null; then
+    echo "Pipeline job 'safecity-pipeline' created."
+else
+    java -jar /tmp/jenkins-cli.jar -auth "admin:\$JENKINS_PASS" update-job safecity-pipeline < /tmp/safecity-job.xml 2>/dev/null || true
+    echo "Pipeline job updated."
+fi
+
+echo "Jenkins setup complete."
+JENKINSSETUP
+
+chmod +x /home/ubuntu/jenkins-setup.sh
+chown ubuntu:ubuntu /home/ubuntu/jenkins-setup.sh
+nohup /home/ubuntu/jenkins-setup.sh > /var/log/jenkins-setup.log 2>&1 &
+echo "Jenkins setup script launched in background."
 
 # ── Create K8s Namespaces ───────────────────────────────────────
 echo "Creating Kubernetes namespaces …"
