@@ -36,6 +36,7 @@ resource "aws_instance" "k3s_master" {
     aws_region       = var.aws_region
     project_name     = var.project_name
     ecr_registry     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
+    account_id       = data.aws_caller_identity.current.account_id
   })
 
   tags = {

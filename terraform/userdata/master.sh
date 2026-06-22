@@ -102,7 +102,7 @@ set -e
 JENKINS_URL="http://localhost:8080"
 echo "Waiting for Jenkins to be ready …"
 for i in \$(seq 1 36); do
-    HTTP_CODE=\$(curl -s -o /dev/null -w '%{http_code}' "\$JENKINS_URL/login" 2>/dev/null || echo "000")
+    HTTP_CODE=\$(curl -s -o /dev/null -w '%%{http_code}' "\$JENKINS_URL/login" 2>/dev/null || echo "000")
     if [ "\$HTTP_CODE" != "000" ] && [ "\$HTTP_CODE" != "503" ]; then
         echo "Jenkins is ready (HTTP \$HTTP_CODE)."
         break
@@ -165,6 +165,107 @@ chmod +x /home/ubuntu/jenkins-setup.sh
 chown ubuntu:ubuntu /home/ubuntu/jenkins-setup.sh
 nohup /home/ubuntu/jenkins-setup.sh > /var/log/jenkins-setup.log 2>&1 &
 echo "Jenkins setup script launched in background."
+
+# ── Setup Backup & DR Scripts ──────────────────────────────────
+SC_ACCOUNT="${account_id}"
+BACKUP_BUCKET="safecity-backups-$SC_ACCOUNT"
+
+# backup.sh — uses unquoted heredoc to inject BACKUP_BUCKET, escapes internal $ signs
+cat > /home/ubuntu/backup.sh << BACKUPEOF
+#!/bin/bash
+set -euo pipefail
+
+S3_BUCKET="$BACKUP_BUCKET"
+BACKUP_DIR="/tmp/backups/safecity-\$(date +%Y%m%d-%H%M%S)"
+NAMESPACES="safecity monitoring logging vault"
+
+mkdir -p "\$BACKUP_DIR"/{etcd,postgres,kubernetes}
+
+echo "[backup] Exporting Kubernetes resources ..."
+for ns in \$NAMESPACES; do
+    kubectl get all -n "\$ns" -o yaml >> "\$BACKUP_DIR/kubernetes/resources-\$ns.yaml" 2>/dev/null || true
+done
+kubectl get pvc --all-namespaces -o yaml >> "\$BACKUP_DIR/kubernetes/pvc.yaml" 2>/dev/null || true
+kubectl get configmap --all-namespaces -o yaml >> "\$BACKUP_DIR/kubernetes/configmaps.yaml" 2>/dev/null || true
+kubectl get secret --all-namespaces -o yaml >> "\$BACKUP_DIR/kubernetes/secrets.yaml" 2>/dev/null || true
+
+echo "[backup] Dumping PostgreSQL ..."
+kubectl exec -n safecity postgres-0 -- sh -c 'PGPASSWORD=safecity_prod_pass pg_dump -U safecity safecity' \
+    > "\$BACKUP_DIR/postgres/dump.sql" 2>/dev/null || echo "[backup] WARNING: Postgres dump failed"
+
+echo "[backup] Snapshotting K3s etcd ..."
+k3s etcd-snapshot save --snapshot-dir="\$BACKUP_DIR/etcd" 2>/dev/null || echo "[backup] WARNING: etcd snapshot failed"
+
+echo "[backup] Uploading to S3 ..."
+aws s3 sync "\$BACKUP_DIR" "s3://\$S3_BUCKET/safecity-backups/\$(basename \$BACKUP_DIR)/" --quiet
+
+echo "[backup] Pruning backups older than 7 days ..."
+aws s3 ls "s3://\$S3_BUCKET/safecity-backups/" | while read -r line; do
+    FOLDER=\$(echo "\$line" | awk '{print \$NF}')
+    TIMESTAMP=\$(echo "\$line" | awk '{print \$1" "\$2}')
+    if [ "\$(date -d "\$TIMESTAMP" +%s 2>/dev/null)" -lt "\$(date -d '7 days ago' +%s)" ]; then
+        aws s3 rm "s3://\$S3_BUCKET/safecity-backups/\$FOLDER" --recursive --quiet
+        echo "[backup] Pruned: \$FOLDER"
+    fi
+done 2>/dev/null || true
+
+echo "[backup] Complete."
+BACKUPEOF
+
+# dr-restore.sh
+cat > /home/ubuntu/dr-restore.sh << DRRESTOREEOF
+#!/bin/bash
+set -euo pipefail
+
+S3_BUCKET="$BACKUP_BUCKET"
+
+echo "═══════════════════════════════════════════════════════"
+echo "  SafeCity DR Restore — \$(date)"
+echo "═══════════════════════════════════════════════════════"
+
+LATEST=\$(aws s3 ls "s3://\$S3_BUCKET/safecity-backups/" | sort | tail -1 | awk '{print \$NF}')
+if [ -z "\$LATEST" ]; then
+    echo "No backups found in s3://\$S3_BUCKET/safecity-backups/"
+    exit 1
+fi
+echo "Restoring from: \$LATEST"
+
+RESTORE_DIR="/tmp/dr-restore"
+mkdir -p "\$RESTORE_DIR"
+aws s3 sync "s3://\$S3_BUCKET/safecity-backups/\$LATEST" "\$RESTORE_DIR" --quiet
+
+if [ -f "\$RESTORE_DIR/postgres/dump.sql" ]; then
+    echo "[DR] Restoring PostgreSQL ..."
+    until kubectl get pod -n safecity postgres-0 -o jsonpath='{.status.phase}' 2>/dev/null | grep -q Running; do
+        sleep 5
+    done
+    kubectl exec -n safecity postgres-0 -- sh -c 'PGPASSWORD=safecity_prod_pass psql -U safecity -d postgres -c "DROP DATABASE IF EXISTS safecity;" 2>/dev/null; PGPASSWORD=safecity_prod_pass psql -U safecity -d postgres -c "CREATE DATABASE safecity;" 2>/dev/null'
+    kubectl exec -n safecity postgres-0 -i -- sh -c 'PGPASSWORD=safecity_prod_pass psql -U safecity safecity' \
+        < "\$RESTORE_DIR/postgres/dump.sql"
+    echo "[DR] PostgreSQL restored."
+else
+    echo "[DR] No PostgreSQL backup found."
+fi
+
+if [ -d "\$RESTORE_DIR/kubernetes" ]; then
+    echo "[DR] Re-applying Kubernetes resources ..."
+    for f in "\$RESTORE_DIR/kubernetes/"*.yaml; do
+        [ -f "\$f" ] && kubectl apply -f "\$f" 2>/dev/null || true
+    done
+    echo "[DR] Kubernetes resources applied."
+fi
+
+echo "DR Restore COMPLETE."
+DRRESTOREEOF
+
+chmod +x /home/ubuntu/backup.sh /home/ubuntu/dr-restore.sh
+chown ubuntu:ubuntu /home/ubuntu/backup.sh /home/ubuntu/dr-restore.sh
+
+# Schedule daily backup via cron
+echo "0 2 * * * root /home/ubuntu/backup.sh > /var/log/safecity-backup.log 2>&1" > /etc/cron.d/safecity-backup
+chmod 644 /etc/cron.d/safecity-backup
+
+echo "Backup and DR scripts installed (daily 2 AM cron)."
 
 # ── Create K8s Namespaces ───────────────────────────────────────
 echo "Creating Kubernetes namespaces …"
@@ -237,4 +338,6 @@ echo "  Grafana:   http://$SC_PUBLIC_IP:30030 (admin/safecity)"
 echo "  Prometheus: http://$SC_PUBLIC_IP:30090"
 echo "  Jenkins:   http://$SC_PUBLIC_IP:8080"
 echo "  Jenkins initial password: docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword"
+echo "  Backups:   s3://$BACKUP_BUCKET/safecity-backups/ (daily 2 AM cron)"
+echo "  DR restore: sudo /home/ubuntu/dr-restore.sh"
 echo "═══════════════════════════════════════════════════════"
