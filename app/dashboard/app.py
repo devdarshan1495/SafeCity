@@ -9,7 +9,8 @@ import logging
 from datetime import datetime
 
 import requests
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
+from prometheus_client import Counter, Histogram, generate_latest, REGISTRY
 
 # ─── Configuration ───────────────────────────────────────────────────
 
@@ -18,6 +19,10 @@ SECRET_KEY = os.getenv("SECRET_KEY", "safecity-dashboard-dev-key")
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+# Prometheus metrics
+requests_total = Counter("dashboard_requests_total", "Total dashboard requests", ["method", "endpoint"])
+request_duration = Histogram("dashboard_request_duration_seconds", "Dashboard request duration", ["method", "endpoint"])
 
 logging.basicConfig(
     level=logging.INFO,
@@ -228,6 +233,10 @@ def analytics_page():
         page="analytics",
     )
 
+
+@app.route("/metrics")
+def metrics():
+    return Response(generate_latest(REGISTRY), mimetype="text/plain")
 
 @app.route("/health")
 def health():
