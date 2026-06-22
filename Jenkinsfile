@@ -61,8 +61,8 @@ pipeline {
         stage("Deploy to Kubernetes") {
             steps {
                 sh """
-                    kubectl set image deployment/safecity-api -n safecity app=${API_IMAGE}:${BUILD_NUMBER} --record
-                    kubectl set image deployment/safecity-dashboard -n safecity app=${DASHBOARD_IMAGE}:${BUILD_NUMBER} --record
+                    kubectl set image deployment/safecity-api -n safecity api=${API_IMAGE}:${BUILD_NUMBER} --record
+                    kubectl set image deployment/safecity-dashboard -n safecity dashboard=${DASHBOARD_IMAGE}:${BUILD_NUMBER} --record
                     kubectl rollout status deployment/safecity-api -n safecity --timeout=120s
                     kubectl rollout status deployment/safecity-dashboard -n safecity --timeout=120s
                 """
