@@ -6,3 +6,4 @@ pydantic==2.10.3
 prometheus-fastapi-instrumentator==7.0.2
 python-multipart==0.0.18
 httpx==0.28.1
+hvac==2.3.0

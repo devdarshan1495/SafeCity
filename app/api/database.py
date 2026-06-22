@@ -6,6 +6,7 @@ Supports PostgreSQL (production) and SQLite (local dev).
 
 import logging
 import time
+from typing import Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
@@ -14,23 +15,43 @@ from config import settings
 
 logger = logging.getLogger("safecity")
 
-_url = settings.DATABASE_URL
 
-# Normalize Postgres URL variants
-if _url.startswith("postgres://"):
-    _url = _url.replace("postgres://", "postgresql://", 1)
+def _build_url() -> str:
+    """Return the normalized database URL from settings."""
+    url = settings.DATABASE_URL
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return url
 
-# SQLite needs check_same_thread=False for FastAPI's threaded usage
-connect_args = {}
-if _url.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
 
-engine = create_engine(_url, connect_args=connect_args, pool_pre_ping=True)
+def _connect_args(url: str) -> dict:
+    """Return connection args appropriate for the given URL."""
+    if url.startswith("sqlite"):
+        return {"check_same_thread": False}
+    return {}
+
+
+_url = _build_url()
+_connect_args_val = _connect_args(_url)
+
+engine = create_engine(_url, connect_args=_connect_args_val, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class Base(DeclarativeBase):
     pass
+
+
+def reinitialize(url: Optional[str] = None):
+    """Rebuild engine and session factory with a new database URL."""
+    global engine, SessionLocal, _url, _connect_args_val
+    if url:
+        _url = url
+    _url = _build_url()
+    _connect_args_val = _connect_args(_url)
+    engine = create_engine(_url, connect_args=_connect_args_val, pool_pre_ping=True)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    logger.info("Database engine reinitialized with URL: %s", _url)
 
 
 def get_db():

@@ -29,6 +29,11 @@ spec:
           envFrom:
             - configMapRef:
                 name: safecity-config
+          env:
+            - name: VAULT_ADDR
+              value: "http://vault.vault:8200"
+            - name: VAULT_TOKEN
+              value: "safecity-root-token"
           resources:
             requests:
               cpu: 100m

@@ -4,6 +4,7 @@ SafeCity Public Safety API — Application Entrypoint
 Starts the FastAPI server with:
   - CORS middleware
   - Prometheus metrics at /metrics
+  - Vault secret fetching at startup
   - Database initialization + seed data
   - All route modules
 """
@@ -16,8 +17,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from config import settings
-from database import init_db, SessionLocal
+from database import init_db, reinitialize, SessionLocal
 from services.event_processor import seed_database
+from vault_client import fetch_secrets, build_database_url, vault_available
 
 # ─── Logging ──────────────────────────────────────────────────────────
 
@@ -32,6 +34,17 @@ logger = logging.getLogger("safecity")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Fetch secrets from Vault if configured
+    if vault_available():
+        logger.info("Vault detected — fetching secrets …")
+        secrets = fetch_secrets()
+        db_url = build_database_url(secrets)
+        if db_url:
+            logger.info("Overriding DATABASE_URL from Vault.")
+            reinitialize(db_url)
+        else:
+            logger.warning("Vault available but DB secrets incomplete — using env vars.")
+
     logger.info("Initializing database …")
     init_db()
 
