@@ -158,7 +158,11 @@ else
     echo "Pipeline job updated."
 fi
 
-echo "Jenkins setup complete."
+# Set a known admin password so the UI is always accessible
+echo "Setting Jenkins admin password to 'safecity' …"
+java -jar /tmp/jenkins-cli.jar -auth "admin:\$JENKINS_PASS" groovy = \
+    'hudson.model.User.get("admin").setPassword("safecity")' 2>/dev/null || true
+echo "Jenkins setup complete — login: admin / safecity"
 JENKINSSETUP
 
 chmod +x /home/ubuntu/jenkins-setup.sh
@@ -336,8 +340,8 @@ echo "  Dashboard: http://$SC_PUBLIC_IP:30080"
 echo "  API:       http://$SC_PUBLIC_IP:30000"
 echo "  Grafana:   http://$SC_PUBLIC_IP:30030 (admin/safecity)"
 echo "  Prometheus: http://$SC_PUBLIC_IP:30090"
-echo "  Jenkins:   http://$SC_PUBLIC_IP:8080"
-echo "  Jenkins initial password: docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword"
+echo "  Jenkins:   http://$SC_PUBLIC_IP:8080 (admin / safecity)"
+echo "  Jenkins pipeline: safecity-pipeline (auto-created)"
 echo "  Backups:   s3://$BACKUP_BUCKET/safecity-backups/ (daily 2 AM cron)"
 echo "  DR restore: sudo /home/ubuntu/dr-restore.sh"
 echo "═══════════════════════════════════════════════════════"
