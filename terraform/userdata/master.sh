@@ -96,6 +96,11 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 echo "[8/9] Starting Jenkins …"
 docker volume create jenkins_home
 
+# Fix kubeconfig: K3s defaults to 127.0.0.1, but Jenkins needs the internal IP
+SC_INTERNAL_IP=$(hostname -I | awk '{print $1}')
+sed "s|server: https://127.0.0.1:6443|server: https://${SC_INTERNAL_IP}:6443|" \
+    /etc/rancher/k3s/k3s.yaml > /home/ubuntu/.kube/jenkins-config
+
 docker run -d \
     --name jenkins \
     --restart unless-stopped \
@@ -105,9 +110,17 @@ docker run -d \
     -v jenkins_home:/var/jenkins_home \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v /usr/bin/docker:/usr/bin/docker \
-    -v /home/ubuntu/.kube:/var/jenkins_home/.kube:ro \
+    -v /home/ubuntu/.kube/jenkins-config:/var/jenkins_home/.kube/config:ro \
+    -v /home/ubuntu/.aws:/var/jenkins_home/.aws:ro \
     -e JAVA_OPTS="-Xmx384m" \
     jenkins/jenkins:lts
+
+# Install tools inside Jenkins container
+docker exec -u root jenkins bash -c "
+  curl -fsSL -o /usr/local/bin/kubectl https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl &&
+  chmod +x /usr/local/bin/kubectl &&
+  apt-get update -qq && apt-get install -y -qq awscli
+"
 
 # ECR login helper script
 cat > /home/ubuntu/ecr-login.sh << ECREOF
